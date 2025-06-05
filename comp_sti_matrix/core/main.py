@@ -4,8 +4,8 @@ import sys
 from builtins import set,tuple
 import logging
 import pandas as pd
-from sti_loader import STILoader
-from utils_structural import (
+from comp_sti_matrix.core.sti_loader import STILoader
+from comp_sti_matrix.core.utils_structural import (
     get_matrix_pairs,
     export_df_excel,
     analyser_couple_matrices,

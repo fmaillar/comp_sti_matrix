@@ -10,7 +10,7 @@ from typing import Optional
 import pandas as pd
 from openpyxl import Workbook
 from openpyxl.utils import get_column_letter
-from sti_loader import STILoader
+from comp_sti_matrix.core.sti_loader import STILoader
 
 KEY_COLS = ["Reference", "Requirement"]
 
