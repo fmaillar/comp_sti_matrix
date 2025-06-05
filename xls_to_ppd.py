@@ -2,10 +2,11 @@
 
 import pandas as pd
 
-PATH_TO_PPD_EXCEL = "..."
+PATH_TO_PPD_EXCEL = "data/GE_H2/AC00000090220_T.0_PPD.xls"
 
 # 'Nom_DOORS': 'Nom_Excel'
 MAPPING_DICT_DOORS_XLS = {
+    "N°": "Ligne PPD",
     "Titre": "Titre",
     "Référence ALSTOM": "N°ATSA",
     "Révision": "Indice de révision",
@@ -29,7 +30,7 @@ MAPPING_DICT_XLS_DOORS = {
     v: k for k, v in MAPPING_DICT_DOORS_XLS.items() if v is not None
 }
 colonnes_date = ["Date d'envoi", "Date du retour SNCF"]
-ppd_xls = pd.read_excel(PATH_TO_PPD_EXCEL, sheet_name="PPD", header=3, usecols="C:AM")
+ppd_xls = pd.read_excel(PATH_TO_PPD_EXCEL, sheet_name="PPD", header=3, usecols="B:AM")
 for col in colonnes_date:
     ppd_xls[col] = ppd_xls[col].dt.strftime("%d/%m/%Y")
 
@@ -43,6 +44,7 @@ colonnes_manquantes = colonnes_requises - colonnes_disponibles
 
 # Étape 3 : Sélection et renommage
 ppd_doors = ppd_xls[list(colonnes_requises & colonnes_disponibles)].copy()
+ppd_doors.reset_index(inplace=True)              # Ramène 'N°' comme colonne
 ppd_doors.rename(columns=MAPPING_DICT_XLS_DOORS, inplace=True)
 
 # Étape 4 : Nettoyage éventuel (trim, NA, etc.)
@@ -52,11 +54,13 @@ ppd_doors = ppd_doors.fillna("")  # Remplissage vide (optionnel pour DOORS)
 ppd_doors = ppd_doors[~ppd_doors["Référence ALSTOM"].astype(str).str.startswith("##")]
 # Reorganisation des colonnes
 ppd_doors = ppd_doors[list(MAPPING_DICT_XLS_DOORS.values())]
+ppd_doors["N°"] = ppd_doors["N°"].astype(str)      # Conversion finale en str
+ppd_doors.set_index("N°", inplace=True)
 
 # Étape 5 : Export vers CSV compatible DOORS (ex. séparateur tabulation)
 ppd_doors.to_csv(
-    "data/GE_H2/PPD_export_DOORS.csv", sep="\t", index=False, encoding="utf-8-sig"
+    "data/GE_H2/PPD_export_DOORS.csv", sep="\t", index=True, encoding="utf-8-sig"
 )
-ppd_doors.to_excel("data/GE_H2/PPD_export_DOORS.xlsx", header=True, index=False)
+ppd_doors.to_excel("data/GE_H2/PPD_export_DOORS.xlsx", header=True, index=True)
 
 print("Export terminé avec succès : PPD_export_DOORS.[csv,xlsx]")

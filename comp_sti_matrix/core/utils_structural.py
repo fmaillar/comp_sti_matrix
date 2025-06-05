@@ -1,9 +1,12 @@
 """Fonction utilitaires."""
 
 import os
+import pprint
+pp = pprint.PrettyPrinter(indent=4)
 import logging
 from collections import defaultdict
-from itertools import combinations
+from pathlib import Path
+from itertools import combinations, chain
 from functools import partial
 import re
 from typing import Optional
@@ -118,6 +121,22 @@ def comparer_row(row, sources):
     return "\n".join(bloc), statut
 
 
+def extract_unique_documents(df: pd.DataFrame, col: str) -> set[str]:
+    """
+    Aplatie une colonne contenant des listes de documents et renvoie un ensemble unique.
+
+    Args:
+        df (pd.DataFrame): Le DataFrame contenant les documents.
+        col (str): Le nom de la colonne contenant les listes de documents.
+
+    Returns:
+        set[str]: L’ensemble unique de tous les documents présents.
+    """
+    if col not in df.columns:
+        raise KeyError(f"Colonne '{col}' absente du DataFrame.")
+    return set(chain.from_iterable(df[col]))
+
+
 def analyser_divergences_documentaires(df, source_cols):
     """
     Applique l’analyse des divergences documentaires sur un DataFrame issu
@@ -163,7 +182,10 @@ def analyser_divergences_documentaires(df, source_cols):
     regrouped["nb_references"] = regrouped["Reference"].apply(len)
     regrouped = regrouped.sort_values(by="nb_references", ascending=False)
 
-    return regrouped
+    set1 = extract_unique_documents(df_docs, "Docs_1")
+    set2 = extract_unique_documents(df_docs, "Docs_2")
+
+    return regrouped, set1, set2
 
 
 def normalize(df, key_cols):
@@ -382,11 +404,61 @@ def analyser_si_divergences(divergents, output_dir, labels):
     if divergents is not None and not divergents.empty:
         requis_impactes = set(divergents["Reference"])
         logging.info(" Nombre de requis impactés : %s", len(requis_impactes))
-        res = analyser_divergences_documentaires(divergents, source_cols=labels)
+        res, set1, set2 = analyser_divergences_documentaires(divergents, source_cols=labels)
         res_filen = f"{output_dir}/res_ana_div_{'-'.join(labels)}.xlsx"
         res.to_excel(res_filen, index=False)
         logging.info(" Analyse documentaire enregistrée dans %s", res_filen)
-        return res
+        return res, set1, set2
 
     logging.info(" Aucun champ divergent détecté.")
     return None
+
+def enrichir_colonne_difference(df_diff: pd.DataFrame, df_docs: pd.DataFrame, labels) -> pd.DataFrame:
+    """
+    Transforme et enrichit la colonne 'Différence' en format lisible,
+    avec titre et révision depuis le référentiel documentaire.
+
+    Args:
+        df_diff (pd.DataFrame): DataFrame contenant une colonne 'Différence'.
+        df_docs (pd.DataFrame): Référentinel documentaire avec 'Référence ALSTOM', 'Titre', 'Révision'.
+
+    Returns:
+        pd.DataFrame: DataFrame avec nouvelle colonne 'Différence intitulée' enrichie.
+    """
+     # Nettoyage
+    df_docs["N°"] = df_docs["N°"].astype(str).str.strip()
+    df_docs["Référence ALSTOM"] = df_docs["Référence ALSTOM"].astype(str).str.strip()
+    df_docs["Titre"] = df_docs["Titre"].fillna("").astype(str).str.strip()
+    df_docs["Révision"] = df_docs["Révision"].fillna("").astype(str).str.strip()
+
+    # Clé composée
+    df_docs["clé"] = df_docs["N°"] + "_" + df_docs["Référence ALSTOM"]
+    doc_info = {
+        row["Référence ALSTOM"]: {"Titre": row["Titre"], "Révision": row["Révision"]}
+        for _, row in df_docs.iterrows()
+    }
+
+    def enrichir_cellule(cellule: str) -> str:
+        if not isinstance(cellule, str):
+            return ""
+        lignes = cellule.strip().splitlines()
+        lignes_enrichies = []
+        for ligne in lignes:
+            m = re.match(f"^({labels[0]}|{labels[1]})\\s*:\\s*(.*)", ligne.strip())
+            if not m:
+                continue
+            prefixe, contenu = m.groups()
+            ids = [s.strip() for s in contenu.split(",")]
+            bloc = []
+            for doc_id in ids:
+                info = doc_info.get(doc_id, {})
+                titre = info.get("Titre", "❓")
+                rev = info.get("Révision", "")
+                bloc.append(f"- {doc_id} – {rev} – {titre}")
+            lignes_enrichies.append(f"{prefixe} :\n  " + "\n  ".join(bloc))
+        return "\n".join(lignes_enrichies)
+
+    df_diff["Différence intitulée"] = df_diff["Différence"].apply(enrichir_cellule)
+    df_diff["Différence"] = df_diff["Différence intitulée"]
+    df_diff.drop(columns=["Différence intitulée"], inplace=True)
+    return df_diff

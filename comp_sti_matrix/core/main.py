@@ -9,6 +9,7 @@ from comp_sti_matrix.core.utils_structural import (
     get_matrix_pairs,
     export_df_excel,
     analyser_couple_matrices,
+    enrichir_colonne_difference,
 )
 # import pdb
 
@@ -16,15 +17,19 @@ from comp_sti_matrix.core.utils_structural import (
 def analyse_sti_matrices(loader):
     """Analyse toutes les paires de matrices définies dans la configuration."""
     res_sti = {}
+    set1 = set()
+    set2 = set()
     for name_x, name_y in get_matrix_pairs(loader):
         sti = name_x[3:]  # Strip prefix (e.g. GE_)
         try:
-            res_sti[sti] = analyser_couple_matrices((name_x, name_y))
+            res_sti[sti], set1_temp, set2_temp = analyser_couple_matrices((name_x, name_y))
+            set1 |= set1_temp
+            set2 |= set2_temp
         except OSError as e:
             logging.warning(
                 "Échec d’analyse sur la paire (%s, %s) : %s", name_x, name_y, e
             )
-    return res_sti
+    return res_sti, set1, set2
 
 
 def consolider_dfs(res_sti):
@@ -59,11 +64,21 @@ def main(config_path):
     """Fonction principale du script."""
     dataset_path = os.path.dirname(config_path)
     output_file = f"{dataset_path}/output/analyse_doc_consolidee.xlsx"
-
+    labels=dataset_path.split("/")[-1].split("_")
+    # print(labels)
     # pdb.set_trace()
     loader = STILoader(config_path)
-    res_sti = analyse_sti_matrices(loader)
+    res_sti, set1, set2 = analyse_sti_matrices(loader)
     df_consolidated = consolider_dfs(res_sti)
+    doc_reference_path = os.path.join(dataset_path, "PPD_export_DOORS.csv")
+    if df_consolidated is not None and os.path.exists(doc_reference_path):
+        df_ref = pd.read_csv(doc_reference_path, sep="\t", dtype={"N°": str}, encoding="utf-8-sig")
+        df_ref["index"] = df_ref["N°"].astype(str) + "_" + df_ref["Référence ALSTOM"].astype(str)
+        df_ref.set_index("index", inplace=True)
+        df_consolidated = enrichir_colonne_difference(df_consolidated, df_ref, labels)
+        logging.info("Colonne 'Différence' enrichie avec les titres et révisions.")
+    elif df_consolidated is not None:
+        logging.warning("Fichier de référence documentaire introuvable : %s", doc_reference_path)
 
     if df_consolidated is not None:
         os.makedirs(os.path.dirname(output_file), exist_ok=True)
@@ -74,6 +89,9 @@ def main(config_path):
             len(df_consolidated),
             len(res_sti),
         )
+    
+    logging.info("\n liste 1 de documents : {%s}", set1)
+    logging.info("\n liste 2 de documents : {%s}", set2)
 
 
 if __name__ == "__main__":
