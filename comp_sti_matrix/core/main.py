@@ -63,9 +63,8 @@ def consolider_dfs(res_sti):
 def main(config_path):
     """Fonction principale du script."""
     dataset_path = os.path.dirname(config_path)
-    output_file = f"{dataset_path}/output/analyse_doc_consolidee.xlsx"
-    labels=dataset_path.split("/")[-1].split("_")
-    # print(labels)
+    output_file = os.path.join(dataset_path, "output", "analyse_doc_consolidee.xlsx")
+    labels=os.path.basename(dataset_path).split('_')
     # pdb.set_trace()
     loader = STILoader(config_path)
     res_sti, set1, set2 = analyse_sti_matrices(loader)
