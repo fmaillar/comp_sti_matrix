@@ -1,6 +1,6 @@
 """Fait l'analyse."""
 import argparse
-from comp_sti_matrix.core.main import main
+from comp_sti_matrix.core.analysis_driver import main
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Lance l’analyse STI")

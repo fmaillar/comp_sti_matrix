@@ -1,0 +1,46 @@
+[project]
+name = "comp-sti-matrix"
+version = "0.1.0"
+description = "Comparaison et enrichissement de matrices STI"
+authors = [{
+    name = "Florian MAILLARD",
+    email = "florian.maillard@ext.caf-france.net"
+}]
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "pandas",
+    "openpyxl",
+    "numpy,
+    "ruff",
+    "pytest"
+]
+
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["comp_sti_matrix"]
+
+[project.scripts]
+comp-sti = "comp_sti_matrix.cli.run_analysis:main"
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+fix = true
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B"]
+ignore = ["E501"]  # long lines gérés par formatter
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "lf"
+
+[tool.pytest.ini_options]
+minversion = "6.0"
+addopts = "-ra -q"
+testpaths = ["tests"]
