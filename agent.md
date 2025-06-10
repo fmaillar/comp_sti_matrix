@@ -15,6 +15,7 @@ Il détecte, structure et documente les divergences pour l’ingénierie certifi
 - Gestion de gros volumes
 
 ### Usage Instructions
+- Respectes les règles données dans les fichiers .yaml
 
 **Installation** :
 pip install -r requirements.txt
