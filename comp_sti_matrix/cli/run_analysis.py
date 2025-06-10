@@ -1,6 +1,6 @@
 """Fait l'analyse."""
 import argparse
-from comp_sti_matrix.core.main import main
+from comp_sti_matrix.core.main import STIAnalyzer
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Lance l’analyse STI")
@@ -14,4 +14,4 @@ def parse_args():
 
 if __name__ == "__main__":
     args = parse_args()
-    main(config_path=args.config)
+    STIAnalyzer(args.config).run()
